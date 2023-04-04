@@ -16,6 +16,7 @@ import org.userrequsts.repository.RequestRepository;
 import org.userrequsts.repository.UserRepository;
 
 import java.util.List;
+import java.util.StringJoiner;
 
 @Service
 public class StaffService {
@@ -29,11 +30,33 @@ public class StaffService {
         RequestStatus status = RequestStatus.SENT;
         Sort sort = UserService.getSort(filter);
         Pageable pageable = PageRequest.of(filter.getOffset(), filter.getLimit(), sort);
-        return filter.getUserName() == null || filter.getUserName().isBlank() ?
-            requestRepository.getRequestsByStatus(status, pageable) :
-            requestRepository.getRequestsByStatus(
+        List<UserRequest> result;
+        if (filter.getUserName() == null || filter.getUserName().isBlank()) {
+            result = requestRepository.getRequestsByStatus(status, pageable);
+        } else {
+            result = requestRepository.getRequestsByStatus(
                 status, filter.getUserName() + "%", pageable
             );
+        }
+        if (result.isEmpty()) {
+            return result;
+        }
+        modifyMessage(result);
+        return result;
+    }
+
+    private void modifyMessage(List<UserRequest> requests) {
+        for (UserRequest request : requests) {
+            String message = request.getMessage();
+            if (message.length() < 2) {
+                continue;
+            }
+            StringJoiner joiner = new StringJoiner("-");
+            for (char c : message.toCharArray()) {
+                joiner.add(String.valueOf(c));
+            }
+            request.setMessage(joiner.toString());
+        }
     }
 
     public boolean updateRequestStatus(long requestId, RequestStatus status) {
